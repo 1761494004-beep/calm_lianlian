@@ -11,15 +11,29 @@ permissions:
   contents: read
 
 concurrency:
-  group: pages-${{ github.ref }}
+  group: pages-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   deploy:
+    # Fork PR 不注入 secrets，避免无意义失败
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Preflight - validate required secrets
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "::error::Missing repository secret: CLOUDFLARE_API_TOKEN"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "::error::Missing repository secret: CLOUDFLARE_ACCOUNT_ID"
+            exit 1
+          fi
 
       - name: Resolve branch name for Pages
         id: vars
@@ -31,12 +45,22 @@ jobs:
             echo "branch=main" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: >
-            pages deploy project/calm_lianlian
-            --project-name calm-lianlian
-            --branch ${{ steps.vars.outputs.branch }}
+          node-version: 20
+
+      - name: Install Wrangler CLI
+        run: npm install -g wrangler@4
+
+      - name: Show Wrangler version
+        run: wrangler --version
+
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          wrangler pages deploy project/calm_lianlian \
+            --project-name calm-lianlian \
+            --branch "${{ steps.vars.outputs.branch }}"
