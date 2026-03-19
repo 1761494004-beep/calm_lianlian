@@ -3,10 +3,16 @@ name: Deploy to Cloudflare Pages
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -14,6 +20,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Resolve branch name for Pages
+        id: vars
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "branch=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=main" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
@@ -23,4 +39,4 @@ jobs:
           command: >
             pages deploy project/calm_lianlian
             --project-name calm-lianlian
-            --branch main
+            --branch ${{ steps.vars.outputs.branch }}
