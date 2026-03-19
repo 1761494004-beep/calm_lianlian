@@ -56,6 +56,28 @@ jobs:
       - name: Show Wrangler version
         run: wrangler --version
 
+      - name: Verify Cloudflare token against account
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -e
+          code=$(curl -sS -o /tmp/cf_verify.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/tokens/verify")
+          echo "Cloudflare verify HTTP: ${code}"
+          cat /tmp/cf_verify.json
+          echo
+          if [ "$code" != "200" ]; then
+            echo "::error::Cloudflare token verify failed (HTTP ${code}). Check token/account id."
+            exit 1
+          fi
+          if ! grep -q '"success":true' /tmp/cf_verify.json; then
+            echo "::error::Cloudflare token verify returned success=false."
+            exit 1
+          fi
+
       - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -63,4 +85,5 @@ jobs:
         run: |
           wrangler pages deploy project/calm_lianlian \
             --project-name calm-lianlian \
-            --branch "${{ steps.vars.outputs.branch }}"
+            --branch "${{ steps.vars.outputs.branch }}" \
+            --commit-dirty=true
