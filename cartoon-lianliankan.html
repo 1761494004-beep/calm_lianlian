@@ -1,0 +1,2050 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calm Link · 放松连连看（MVP）</title>
+  <style>
+    :root {
+      --bg1: #0b1220;
+      --bg2: #1d2b54;
+      --card: rgba(255, 255, 255, 0.08);
+      --line: rgba(255, 255, 255, 0.18);
+      --text: #eef2ff;
+      --muted: #cbd5e1;
+      --primary: #38bdf8;
+      --primary-2: #818cf8;
+      --ok: #34d399;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, #2563eb66, transparent 35%),
+        radial-gradient(circle at 80% 20%, #7c3aed66, transparent 35%),
+        linear-gradient(140deg, var(--bg1), var(--bg2));
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    .app {
+      width: min(1100px, 98vw);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--card);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px 8px;
+      flex-wrap: wrap;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(20px, 2.8vw, 30px);
+      letter-spacing: .5px;
+    }
+
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: #dbeafe;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .chip.pro {
+      border-color: #facc15aa;
+      color: #fde68a;
+      background: rgba(250, 204, 21, 0.12);
+    }
+
+    .nav {
+      display: flex;
+      gap: 8px;
+      padding: 0 18px 14px;
+      border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
+    }
+
+    .nav-btn,
+    .btn,
+    select {
+      border: 1px solid var(--line);
+      color: var(--text);
+      background: linear-gradient(150deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
+      border-radius: 12px;
+      padding: 8px 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform .12s ease, opacity .2s ease;
+    }
+
+    .nav-btn:hover,
+    .btn:hover,
+    select:hover { transform: translateY(-1px); }
+
+    .nav-btn.active {
+      border-color: #38bdf8aa;
+      box-shadow: 0 0 0 1px #38bdf899 inset;
+    }
+
+    .view {
+      display: none;
+      padding: 18px;
+    }
+
+    .view.active { display: block; }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+
+    .panel {
+      grid-column: span 12;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.35);
+      padding: 14px;
+    }
+
+    .panel h2,
+    .panel h3 {
+      margin: 0 0 8px;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .btn.primary {
+      border-color: #38bdf8aa;
+      background: linear-gradient(140deg, #38bdf833, #818cf833);
+    }
+
+    .btn.danger {
+      border-color: #ef444499;
+      background: linear-gradient(140deg, #ef444433, #f9731633);
+    }
+
+    .btn:disabled,
+    select:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-right: 10px;
+      margin-bottom: 6px;
+    }
+
+    /* Game */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px 10px;
+      min-width: 100px;
+      font-size: 13px;
+      background: rgba(2, 6, 23, 0.4);
+      text-align: center;
+    }
+
+    .status {
+      min-height: 24px;
+      margin: 8px 0;
+      font-size: 14px;
+      color: #e2e8f0;
+    }
+
+    .time-wrap {
+      width: 100%;
+      height: 9px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.15);
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .time-bar {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--ok), #60a5fa);
+      transition: width 1s linear, background-color .2s ease;
+    }
+
+    .board {
+      --cols: 8;
+      display: grid;
+      grid-template-columns: repeat(var(--cols), minmax(42px, 1fr));
+      gap: 8px;
+      user-select: none;
+      min-height: 260px;
+    }
+
+    .cell {
+      aspect-ratio: 1 / 1;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font-size: clamp(20px, 2.8vw, 32px);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      background: linear-gradient(145deg, rgba(255,255,255,0.24), rgba(255,255,255,0.06));
+      transition: transform .12s ease, box-shadow .15s ease;
+    }
+
+    .cell:hover { transform: translateY(-1px) scale(1.02); }
+
+    .cell.empty {
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .cell.selected {
+      box-shadow: 0 0 0 2px #38bdf8, 0 0 16px #38bdf8aa;
+      transform: scale(1.04);
+    }
+
+    .cell.hint {
+      box-shadow: 0 0 0 2px #f59e0b, 0 0 16px #f59e0baa;
+      animation: pulse .5s ease 2;
+    }
+
+    .cell.shake { animation: shake .2s linear 1; }
+    .cell.matched { animation: pop .2s ease 1; }
+
+    /* Leaderboard */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      font-size: 14px;
+    }
+
+    th, td {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 9px 8px;
+      text-align: left;
+    }
+
+    th { background: rgba(15, 23, 42, 0.6); }
+
+    tr:last-child td { border-bottom: none; }
+
+    .rank-me {
+      background: rgba(56, 189, 248, 0.12);
+    }
+
+    /* Modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.72);
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      z-index: 99;
+    }
+
+    .modal.hidden { display: none; }
+
+    .modal-card {
+      width: min(560px, 94vw);
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.92));
+      padding: 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .mood-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0;
+    }
+
+    .mood-btn {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      padding: 8px 10px;
+      min-width: 72px;
+      cursor: pointer;
+      transition: transform .12s ease;
+    }
+
+    .mood-btn.active {
+      border-color: #34d399;
+      box-shadow: 0 0 0 1px #34d399aa inset;
+      transform: translateY(-1px);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(2, 6, 23, 0.9);
+      color: #f8fafc;
+      padding: 8px 14px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+      z-index: 100;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-4px);
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 6px;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+
+    @media (max-width: 760px) {
+      .stat { min-width: 86px; }
+      .board { gap: 6px; }
+      th, td { font-size: 12px; padding: 7px 6px; }
+      .kv { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1 class="title">🌿 Calm Link · 放松连连看</h1>
+      <div id="userChip" class="chip">游客模式（可试玩 1 局）</div>
+    </header>
+
+    <nav class="nav" id="navBar">
+      <button class="nav-btn active" data-view="home">首页</button>
+      <button class="nav-btn" data-view="game">游戏</button>
+      <button class="nav-btn" data-view="leaderboard">排行榜</button>
+      <button class="nav-btn" data-view="account">订阅/账户</button>
+    </nav>
+
+    <!-- 首页 -->
+    <section class="view active" id="homeView">
+      <div class="grid">
+        <div class="panel" style="grid-column: span 8;">
+          <h2>3–5 分钟，快速降压</h2>
+          <p class="muted">
+            MVP 流程：<strong>游客试玩 1 局 → Google 登录 → Free 每日 5 局 → Pro 无限局数</strong>。
+            每局结束后会收集放松评分（1–5），并支持最短通关排行榜（Top 50）。
+          </p>
+          <div class="kv">
+            <div>当前状态</div><div id="homeState">游客</div>
+            <div>今日额度</div><div id="homeQuota">试玩剩余：1/1</div>
+            <div>订阅计划</div><div id="homePlan">Guest</div>
+          </div>
+          <div class="btn-row">
+            <button class="btn" id="googleLoginBtn">Google 登录（Demo）</button>
+            <button class="btn primary" id="homeStartBtn">开始试玩</button>
+            <button class="btn" id="homeLogoutBtn">退出登录</button>
+          </div>
+          <p class="muted" id="homeNotice">提示：本地演示版使用 localStorage 模拟登录与订阅状态。</p>
+        </div>
+
+        <div class="panel" style="grid-column: span 4;">
+          <h3>本局放松设置</h3>
+          <div class="inline">
+            <button class="btn" id="sfxBtn">音效：开</button>
+          </div>
+          <div class="inline">
+            <label for="ambientSelect">环境音</label>
+            <select id="ambientSelect">
+              <option value="off">关闭</option>
+              <option value="rain">雨声（Free）</option>
+              <option value="white">白噪音（Pro）</option>
+            </select>
+          </div>
+          <p class="muted" style="margin-top: 10px;">
+            Pro 权益：无限局数、全部环境音、近 30 天放松记录查看。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 游戏页 -->
+    <section class="view" id="gameView">
+      <div class="toolbar">
+        <div class="stat">关卡：<strong id="levelStat">1/6</strong></div>
+        <div class="stat">时间：<strong id="timeStat">04:00</strong></div>
+        <div class="stat">分数：<strong id="scoreStat">0</strong></div>
+        <div class="stat">提示：<strong id="hintStat">0</strong></div>
+        <div class="stat">洗牌：<strong id="shuffleStat">0</strong></div>
+        <div class="stat">额度：<strong id="quotaStat">试玩 1/1</strong></div>
+
+        <button class="btn primary" id="startRoundBtn">开始第1关</button>
+        <button class="btn" id="hintBtn">提示（-3）</button>
+        <button class="btn" id="shuffleBtn">洗牌（-5）</button>
+      </div>
+
+      <div class="status" id="gameStatus">点击“开始第1关”进入放松模式。</div>
+      <div class="time-wrap"><div class="time-bar" id="timeBar"></div></div>
+      <div class="board" id="board"></div>
+      <p class="muted" style="margin-top:10px;">
+        规则：相同图案，路径最多 2 次转弯。无可消组合时会自动洗牌。
+      </p>
+    </section>
+
+    <!-- 排行榜页 -->
+    <section class="view" id="leaderboardView">
+      <div class="panel">
+        <h2>最短通关用时 Top 50</h2>
+        <p class="muted">
+          排序：用时更短 → 提示更少 → 洗牌更少 → 完成时间更早。每位用户仅保留最佳成绩。
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 70px;">排名</th>
+              <th>昵称</th>
+              <th style="width: 110px;">用时</th>
+              <th style="width: 90px;">提示</th>
+              <th style="width: 90px;">洗牌</th>
+              <th style="width: 180px;">完成时间</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody">
+            <tr><td colspan="6" class="muted">暂无成绩，先去通关一局吧。</td></tr>
+          </tbody>
+        </table>
+        <p class="muted" id="myRankInfo" style="margin-top:10px;">登录后可查看“我的名次”。</p>
+      </div>
+    </section>
+
+    <!-- 账户页 -->
+    <section class="view" id="accountView">
+      <div class="grid">
+        <div class="panel" style="grid-column: span 6;">
+          <h3>账户状态</h3>
+          <div class="kv">
+            <div>身份</div><div id="accountIdentity">游客</div>
+            <div>邮箱</div><div id="accountEmail">-</div>
+            <div>当前计划</div><div id="accountPlan">Guest</div>
+            <div>今日局数</div><div id="accountQuota">试玩剩余：1/1</div>
+          </div>
+          <div class="btn-row">
+            <button class="btn" id="accountLoginBtn">Google 登录（Demo）</button>
+            <button class="btn" id="logoutBtn">退出登录</button>
+          </div>
+        </div>
+
+        <div class="panel" style="grid-column: span 6;">
+          <h3>PayPal 订阅（MVP Mock）</h3>
+          <p class="muted" id="subscriptionHint">Free：每天 5 局；Pro：无限局数 + 全部环境音 + 放松记录查看。</p>
+          <div class="btn-row">
+            <button class="btn primary" id="upgradeMonthlyBtn">开通 Pro（月付 $6.99）</button>
+            <button class="btn primary" id="upgradeYearlyBtn">开通 Pro（年付 $49）</button>
+            <button class="btn danger" id="cancelSubscriptionBtn">取消订阅</button>
+          </div>
+        </div>
+
+        <div class="panel" style="grid-column: span 12;">
+          <h3>近 30 天放松记录</h3>
+          <p class="muted" id="moodTrend">登录后可记录评分；Pro 可查看趋势。</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 结果弹窗 -->
+  <div class="modal hidden" id="resultModal" aria-hidden="true">
+    <div class="modal-card">
+      <h2 id="resultTitle">本局结束</h2>
+      <p class="muted" id="resultSummary">-</p>
+
+      <h3 style="margin: 10px 0 6px;">这局你感觉有多放松？（1-5）</h3>
+      <div class="mood-row" id="moodRow">
+        <button class="mood-btn" data-score="1">1 😫</button>
+        <button class="mood-btn" data-score="2">2 😐</button>
+        <button class="mood-btn" data-score="3">3 🙂</button>
+        <button class="mood-btn" data-score="4">4 😊</button>
+        <button class="mood-btn" data-score="5">5 😌</button>
+      </div>
+      <p class="muted" id="resultHint">请选择评分后提交。</p>
+
+      <div class="btn-row">
+        <button class="btn primary" id="submitMoodBtn">提交评分</button>
+        <button class="btn" id="resultPlayAgainBtn">再来一局</button>
+        <button class="btn" id="resultLeaderboardBtn">查看排行榜</button>
+        <button class="btn" id="closeResultBtn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const STORAGE_KEY = "calmlink_mvp_state_v3";
+      const LEVELS = [
+        { id: 1, label: "晨光热身", rows: 4, cols: 6, timeLimit: 140, pairScore: 10, clearBonus: 18, hintPenalty: 2, shufflePenalty: 4 },
+        { id: 2, label: "森林漫步", rows: 5, cols: 6, timeLimit: 160, pairScore: 10, clearBonus: 20, hintPenalty: 2, shufflePenalty: 4 },
+        { id: 3, label: "云海平衡", rows: 6, cols: 6, timeLimit: 180, pairScore: 10, clearBonus: 22, hintPenalty: 3, shufflePenalty: 5 },
+        { id: 4, label: "微风专注", rows: 6, cols: 8, timeLimit: 210, pairScore: 11, clearBonus: 24, hintPenalty: 3, shufflePenalty: 5 },
+        { id: 5, label: "极光挑战", rows: 6, cols: 10, timeLimit: 240, pairScore: 12, clearBonus: 28, hintPenalty: 3, shufflePenalty: 6 },
+        { id: 6, label: "夜空大师", rows: 8, cols: 10, timeLimit: 280, pairScore: 13, clearBonus: 36, hintPenalty: 4, shufflePenalty: 7 },
+      ];
+
+      const GAME_CONFIG = {
+        minLeaderboardSec: 20,
+      };
+
+      const ICONS = [
+        "🦊", "🐼", "🐸", "🐧", "🐱", "🐻", "🦄", "🐰", "🐙", "🐯",
+        "🧚", "🧙", "🤖", "👻", "🦸", "🦸‍♀️", "🧛", "🐵"
+      ];
+
+      const DEFAULT_STATE = {
+        accounts: {},
+        currentUserId: null,
+        guestTrialUsed: false,
+        usageByDate: {},
+        sessions: [],
+        leaderboard: [],
+        moodRecords: [],
+        analytics: [],
+        settings: {
+          sfxOn: true,
+          ambient: "off",
+        },
+      };
+
+      let state = loadState();
+
+      // game runtime
+      let board = [];
+      let selected = null;
+      let selectedEl = null;
+      let running = false;
+      let timerId = null;
+      let currentLevelIndex = 0;
+      let activeLevel = LEVELS[0];
+      let timeLeft = activeLevel.timeLimit;
+      let score = 0;
+      let hintsUsed = 0;
+      let shufflesUsed = 0;
+      let forcedShuffles = 0;
+      let sessionStartAt = 0;
+      let lastResult = null;
+      let pendingMoodScore = null;
+
+      // audio runtime
+      let audioCtx = null;
+      let ambientSource = null;
+      let ambientGain = null;
+      let ambientFilterA = null;
+      let ambientFilterB = null;
+      let rainDropInterval = null;
+
+      const els = {
+        navButtons: Array.from(document.querySelectorAll(".nav-btn")),
+        views: {
+          home: document.getElementById("homeView"),
+          game: document.getElementById("gameView"),
+          leaderboard: document.getElementById("leaderboardView"),
+          account: document.getElementById("accountView"),
+        },
+
+        userChip: document.getElementById("userChip"),
+
+        homeState: document.getElementById("homeState"),
+        homeQuota: document.getElementById("homeQuota"),
+        homePlan: document.getElementById("homePlan"),
+        homeNotice: document.getElementById("homeNotice"),
+        googleLoginBtn: document.getElementById("googleLoginBtn"),
+        homeStartBtn: document.getElementById("homeStartBtn"),
+        homeLogoutBtn: document.getElementById("homeLogoutBtn"),
+
+        sfxBtn: document.getElementById("sfxBtn"),
+        ambientSelect: document.getElementById("ambientSelect"),
+
+        timeStat: document.getElementById("timeStat"),
+        levelStat: document.getElementById("levelStat"),
+        scoreStat: document.getElementById("scoreStat"),
+        hintStat: document.getElementById("hintStat"),
+        shuffleStat: document.getElementById("shuffleStat"),
+        quotaStat: document.getElementById("quotaStat"),
+        gameStatus: document.getElementById("gameStatus"),
+        timeBar: document.getElementById("timeBar"),
+        board: document.getElementById("board"),
+        startRoundBtn: document.getElementById("startRoundBtn"),
+        hintBtn: document.getElementById("hintBtn"),
+        shuffleBtn: document.getElementById("shuffleBtn"),
+
+        leaderboardBody: document.getElementById("leaderboardBody"),
+        myRankInfo: document.getElementById("myRankInfo"),
+
+        accountIdentity: document.getElementById("accountIdentity"),
+        accountEmail: document.getElementById("accountEmail"),
+        accountPlan: document.getElementById("accountPlan"),
+        accountQuota: document.getElementById("accountQuota"),
+        subscriptionHint: document.getElementById("subscriptionHint"),
+        moodTrend: document.getElementById("moodTrend"),
+        accountLoginBtn: document.getElementById("accountLoginBtn"),
+        logoutBtn: document.getElementById("logoutBtn"),
+        upgradeMonthlyBtn: document.getElementById("upgradeMonthlyBtn"),
+        upgradeYearlyBtn: document.getElementById("upgradeYearlyBtn"),
+        cancelSubscriptionBtn: document.getElementById("cancelSubscriptionBtn"),
+
+        resultModal: document.getElementById("resultModal"),
+        resultTitle: document.getElementById("resultTitle"),
+        resultSummary: document.getElementById("resultSummary"),
+        moodRow: document.getElementById("moodRow"),
+        resultHint: document.getElementById("resultHint"),
+        submitMoodBtn: document.getElementById("submitMoodBtn"),
+        resultPlayAgainBtn: document.getElementById("resultPlayAgainBtn"),
+        resultLeaderboardBtn: document.getElementById("resultLeaderboardBtn"),
+        closeResultBtn: document.getElementById("closeResultBtn"),
+
+        toast: document.getElementById("toast"),
+      };
+
+      bindEvents();
+      enforceEntitlements();
+      hydrateAll();
+      renderBoard();
+      showView("home");
+
+      function bindEvents() {
+        els.navButtons.forEach((btn) => {
+          btn.addEventListener("click", () => showView(btn.dataset.view));
+        });
+
+        els.googleLoginBtn.addEventListener("click", handleGoogleLogin);
+        els.accountLoginBtn.addEventListener("click", handleGoogleLogin);
+
+        els.homeLogoutBtn.addEventListener("click", handleLogout);
+        els.logoutBtn.addEventListener("click", handleLogout);
+
+        els.homeStartBtn.addEventListener("click", () => requestStartRound("home_cta"));
+        els.startRoundBtn.addEventListener("click", () => requestStartRound("game_button"));
+        els.hintBtn.addEventListener("click", useHint);
+        els.shuffleBtn.addEventListener("click", manualShuffle);
+
+        els.sfxBtn.addEventListener("click", toggleSfx);
+        els.ambientSelect.addEventListener("change", handleAmbientChange);
+
+        els.upgradeMonthlyBtn.addEventListener("click", () => activatePro("monthly"));
+        els.upgradeYearlyBtn.addEventListener("click", () => activatePro("yearly"));
+        els.cancelSubscriptionBtn.addEventListener("click", cancelSubscription);
+
+        els.moodRow.querySelectorAll(".mood-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            pendingMoodScore = Number(btn.dataset.score);
+            els.moodRow.querySelectorAll(".mood-btn").forEach((n) => n.classList.remove("active"));
+            btn.classList.add("active");
+            els.resultHint.textContent = `已选择：${pendingMoodScore} 分，点击“提交评分”保存。`;
+          });
+        });
+
+        els.submitMoodBtn.addEventListener("click", submitMoodScore);
+        els.resultPlayAgainBtn.addEventListener("click", () => {
+          closeResultModal();
+          requestStartRound("result_play_again");
+        });
+        els.resultLeaderboardBtn.addEventListener("click", () => {
+          closeResultModal();
+          showView("leaderboard");
+        });
+        els.closeResultBtn.addEventListener("click", closeResultModal);
+
+        window.addEventListener("pointerdown", () => {
+          ensureAudioCtx();
+          applyAmbientSound();
+        }, { once: true });
+
+        window.addEventListener("keydown", () => {
+          ensureAudioCtx();
+          applyAmbientSound();
+        }, { once: true });
+      }
+
+      function hydrateAll() {
+        updateUserChip();
+        updateHomeView();
+        updateGameHUD();
+        refreshLeaderboard();
+        updateAccountView();
+        updateAudioUI();
+      }
+
+      // ---------- Storage ----------
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return deepClone(DEFAULT_STATE);
+          const parsed = JSON.parse(raw);
+          return {
+            ...deepClone(DEFAULT_STATE),
+            ...parsed,
+            settings: {
+              ...deepClone(DEFAULT_STATE).settings,
+              ...(parsed.settings || {}),
+            },
+            accounts: parsed.accounts || {},
+            usageByDate: parsed.usageByDate || {},
+            sessions: parsed.sessions || [],
+            leaderboard: parsed.leaderboard || [],
+            moodRecords: parsed.moodRecords || [],
+            analytics: parsed.analytics || [],
+          };
+        } catch (_) {
+          return deepClone(DEFAULT_STATE);
+        }
+      }
+
+      function saveState() {
+        trimState();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+
+      function trimState() {
+        if (state.sessions.length > 500) {
+          state.sessions = state.sessions.slice(-500);
+        }
+        if (state.moodRecords.length > 500) {
+          state.moodRecords = state.moodRecords.slice(-500);
+        }
+        if (state.analytics.length > 1000) {
+          state.analytics = state.analytics.slice(-1000);
+        }
+
+        const days = Object.keys(state.usageByDate).sort();
+        while (days.length > 45) {
+          const old = days.shift();
+          delete state.usageByDate[old];
+        }
+      }
+
+      function deepClone(obj) {
+        return JSON.parse(JSON.stringify(obj));
+      }
+
+      // ---------- User & Plan ----------
+      function getCurrentUser() {
+        if (!state.currentUserId) return null;
+        return state.accounts[state.currentUserId] || null;
+      }
+
+      function getPlan() {
+        const user = getCurrentUser();
+        if (!user) return "guest";
+        return user.plan === "pro" ? "pro" : "free";
+      }
+
+      function isProUser() {
+        return getPlan() === "pro";
+      }
+
+      function handleGoogleLogin() {
+        const current = getCurrentUser();
+        const emailInput = prompt("请输入 Google 邮箱（Demo 登录）", current?.email || "");
+        if (!emailInput) return;
+
+        const email = normalizeEmail(emailInput);
+        if (!isValidEmail(email)) {
+          notify("邮箱格式不正确", "warn");
+          return;
+        }
+
+        const defaultName = email.split("@")[0].slice(0, 18);
+        const nickInput = prompt("请输入显示昵称", current?.nickname || defaultName);
+        const nickname = (nickInput || defaultName).trim().slice(0, 18) || defaultName;
+
+        const userId = `g_${simpleHash(email)}`;
+        const existing = state.accounts[userId];
+
+        const user = existing || {
+          id: userId,
+          email,
+          nickname,
+          provider: "google",
+          plan: "free",
+          subscription: null,
+          createdAt: new Date().toISOString(),
+        };
+
+        user.email = email;
+        user.nickname = nickname;
+
+        state.accounts[userId] = user;
+        state.currentUserId = userId;
+        saveState();
+
+        enforceEntitlements();
+        hydrateAll();
+        notify(`登录成功：${nickname}`, "ok");
+      }
+
+      function handleLogout() {
+        const user = getCurrentUser();
+        if (!user) {
+          notify("当前已经是游客模式");
+          return;
+        }
+        state.currentUserId = null;
+        saveState();
+        enforceEntitlements();
+        hydrateAll();
+        notify("已退出登录");
+      }
+
+      function activatePro(cycle) {
+        const user = getCurrentUser();
+        if (!user) {
+          notify("请先使用 Google 登录", "warn");
+          return;
+        }
+
+        const priceText = cycle === "monthly" ? "$6.99/月" : "$49/年";
+        trackEvent("paypal_checkout_start", { cycle, price: priceText, user_id: user.id });
+
+        const confirmed = confirm(`模拟跳转 PayPal：确认开通 Pro（${priceText}）？`);
+        if (!confirmed) return;
+
+        user.plan = "pro";
+        user.subscription = {
+          status: "active",
+          cycle,
+          activatedAt: new Date().toISOString(),
+        };
+        state.accounts[user.id] = user;
+        saveState();
+
+        trackEvent("paypal_subscription_active", { cycle, user_id: user.id });
+        enforceEntitlements();
+        hydrateAll();
+        showView("account");
+        notify("Pro 已生效（MVP Mock）", "ok");
+      }
+
+      function cancelSubscription() {
+        const user = getCurrentUser();
+        if (!user) {
+          notify("请先登录账户", "warn");
+          return;
+        }
+        if (user.plan !== "pro") {
+          notify("当前不是 Pro，无需取消");
+          return;
+        }
+
+        const confirmed = confirm("确认取消 Pro 订阅？取消后立即降级为 Free。");
+        if (!confirmed) return;
+
+        user.plan = "free";
+        user.subscription = {
+          status: "canceled",
+          canceledAt: new Date().toISOString(),
+        };
+        state.accounts[user.id] = user;
+        saveState();
+
+        trackEvent("paypal_subscription_canceled", { user_id: user.id });
+        enforceEntitlements();
+        hydrateAll();
+        notify("已取消订阅，当前为 Free", "ok");
+      }
+
+      function enforceEntitlements() {
+        if (state.settings.ambient === "white" && !isProUser()) {
+          state.settings.ambient = "off";
+          saveState();
+          stopAmbientSound();
+        }
+      }
+
+      // ---------- Access Control ----------
+      function todayKey() {
+        return new Date().toISOString().slice(0, 10);
+      }
+
+      function getTodayUsage(userId) {
+        const day = state.usageByDate[todayKey()] || {};
+        return day[userId] || 0;
+      }
+
+      function checkStartEligibility() {
+        const user = getCurrentUser();
+
+        if (!user) {
+          if (state.guestTrialUsed) {
+            return { ok: false, reason: "游客试玩已用完，请使用 Google 登录继续。" };
+          }
+          return { ok: true };
+        }
+
+        if (user.plan === "pro") return { ok: true };
+
+        const used = getTodayUsage(user.id);
+        if (used >= 5) {
+          return { ok: false, reason: "Free 今日 5 局已用完，升级 Pro 可无限畅玩。" };
+        }
+
+        return { ok: true };
+      }
+
+      function consumeQuota() {
+        const user = getCurrentUser();
+        if (!user) {
+          state.guestTrialUsed = true;
+          saveState();
+          return;
+        }
+
+        if (user.plan === "pro") return;
+
+        const dayKey = todayKey();
+        if (!state.usageByDate[dayKey]) {
+          state.usageByDate[dayKey] = {};
+        }
+        state.usageByDate[dayKey][user.id] = (state.usageByDate[dayKey][user.id] || 0) + 1;
+        saveState();
+      }
+
+      function getQuotaText() {
+        const user = getCurrentUser();
+        if (!user) {
+          return state.guestTrialUsed ? "游客试玩已用完（1/1）" : "游客试玩剩余：1/1";
+        }
+
+        if (user.plan === "pro") return "Pro：无限局数";
+
+        const used = getTodayUsage(user.id);
+        return `Free 今日局数：${used}/5`;
+      }
+
+      function showPaywall(reason) {
+        trackEvent("paywall_view", {
+          reason,
+          user_id: getCurrentUser()?.id || "guest",
+          plan: getPlan(),
+        });
+
+        notify(reason, "warn");
+        showView("account");
+      }
+
+      // ---------- UI ----------
+      function showView(viewName) {
+        Object.entries(els.views).forEach(([k, node]) => {
+          node.classList.toggle("active", k === viewName);
+        });
+
+        els.navButtons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.view === viewName);
+        });
+      }
+
+      function updateUserChip() {
+        const user = getCurrentUser();
+        if (!user) {
+          els.userChip.className = "chip";
+          els.userChip.textContent = state.guestTrialUsed
+            ? "游客模式（试玩已用完）"
+            : "游客模式（可试玩 1 局）";
+          return;
+        }
+
+        const planText = user.plan === "pro" ? "Pro" : "Free";
+        els.userChip.className = user.plan === "pro" ? "chip pro" : "chip";
+        els.userChip.textContent = `${user.nickname} · ${planText}`;
+      }
+
+      function updateHomeView() {
+        const user = getCurrentUser();
+        const plan = getPlan();
+        const gate = checkStartEligibility();
+
+        els.homeState.textContent = user
+          ? `已登录（Google）：${user.nickname}`
+          : "游客模式（未登录）";
+        els.homeQuota.textContent = getQuotaText();
+        els.homePlan.textContent = plan.toUpperCase();
+
+        if (plan === "guest") {
+          els.homeStartBtn.textContent = gate.ok ? "开始试玩" : "试玩已用完，去登录";
+          els.homeStartBtn.disabled = false;
+        } else if (plan === "free") {
+          els.homeStartBtn.textContent = gate.ok ? "开始放松" : "今日 5 局已满，去升级";
+          els.homeStartBtn.disabled = false;
+        } else {
+          els.homeStartBtn.textContent = "开始放松（Pro 无限）";
+          els.homeStartBtn.disabled = false;
+        }
+
+        els.homeLogoutBtn.disabled = !user;
+
+        els.homeNotice.textContent = gate.ok
+          ? "提示：首次交互后可开启环境音，建议戴耳机放松。"
+          : gate.reason;
+      }
+
+      function updateStartButtonLabel() {
+        const nextLevel = LEVELS[currentLevelIndex] || LEVELS[LEVELS.length - 1];
+        const levelText = `第${nextLevel.id}关`;
+        if (running) {
+          els.startRoundBtn.textContent = `重开${levelText}`;
+        } else {
+          els.startRoundBtn.textContent = `开始${levelText}`;
+        }
+      }
+
+      function updateGameHUD() {
+        els.levelStat.textContent = `${currentLevelIndex + 1}/${LEVELS.length}`;
+        els.timeStat.textContent = formatDuration(timeLeft);
+        els.scoreStat.textContent = String(score);
+        els.hintStat.textContent = String(hintsUsed);
+        els.shuffleStat.textContent = String(shufflesUsed);
+        els.quotaStat.textContent = getQuotaText();
+
+        const p = Math.max(0, (timeLeft / Math.max(1, activeLevel.timeLimit)) * 100);
+        els.timeBar.style.width = `${p}%`;
+        if (p > 50) {
+          els.timeBar.style.background = "linear-gradient(90deg,#34d399,#60a5fa)";
+        } else if (p > 25) {
+          els.timeBar.style.background = "linear-gradient(90deg,#f59e0b,#facc15)";
+        } else {
+          els.timeBar.style.background = "linear-gradient(90deg,#ef4444,#fb7185)";
+        }
+
+        updateStartButtonLabel();
+        els.hintBtn.disabled = !running;
+        els.shuffleBtn.disabled = !running;
+      }
+
+      function updateAccountView() {
+        const user = getCurrentUser();
+
+        els.accountIdentity.textContent = user ? `Google 用户：${user.nickname}` : "游客";
+        els.accountEmail.textContent = user ? user.email : "-";
+        els.accountPlan.textContent = getPlan().toUpperCase();
+        els.accountQuota.textContent = getQuotaText();
+
+        els.accountLoginBtn.disabled = !!user;
+        els.logoutBtn.disabled = !user;
+
+        els.upgradeMonthlyBtn.disabled = !user || user.plan === "pro";
+        els.upgradeYearlyBtn.disabled = !user || user.plan === "pro";
+        els.cancelSubscriptionBtn.disabled = !user || user.plan !== "pro";
+
+        if (!user) {
+          els.subscriptionHint.textContent = "请先 Google 登录，再开通 PayPal 订阅（演示版为本地模拟）。";
+          els.moodTrend.textContent = "登录后可保存成绩与放松评分；升级 Pro 可查看趋势。";
+          return;
+        }
+
+        if (user.plan === "pro") {
+          els.subscriptionHint.textContent = "当前 Pro 已激活：无限局数 + 全部环境音 + 放松记录趋势。";
+        } else {
+          els.subscriptionHint.textContent = "当前为 Free：每天 5 局，可升级 Pro 解锁全部权益。";
+        }
+
+        const userMood = state.moodRecords
+          .filter((x) => x.userId === user.id)
+          .filter((x) => Date.now() - new Date(x.at).getTime() <= 30 * 24 * 3600 * 1000);
+
+        if (user.plan !== "pro") {
+          els.moodTrend.textContent = `已记录评分 ${userMood.length} 条。升级 Pro 后可查看近 30 天平均放松分。`;
+          return;
+        }
+
+        if (userMood.length === 0) {
+          els.moodTrend.textContent = "近 30 天暂无放松评分记录。";
+          return;
+        }
+
+        const avg = userMood.reduce((s, n) => s + Number(n.score || 0), 0) / userMood.length;
+        const last = userMood[userMood.length - 1];
+        els.moodTrend.textContent = `近 30 天评分 ${userMood.length} 条，平均 ${avg.toFixed(2)} 分；最近一次：${formatDate(last.at)}（${last.score} 分）。`;
+      }
+
+      function updateAudioUI() {
+        els.sfxBtn.textContent = `音效：${state.settings.sfxOn ? "开" : "关"}`;
+        els.sfxBtn.classList.toggle("primary", state.settings.sfxOn);
+        els.ambientSelect.value = state.settings.ambient;
+      }
+
+      function refreshLeaderboard() {
+        const rows = [...state.leaderboard].sort(compareRank).slice(0, 50);
+        const me = getCurrentUser();
+
+        if (!rows.length) {
+          els.leaderboardBody.innerHTML = `<tr><td colspan="6" class="muted">暂无成绩，先去通关一局吧。</td></tr>`;
+          els.myRankInfo.textContent = me ? "你暂未上榜，先完整通关一局吧。" : "登录后可查看“我的名次”。";
+          return;
+        }
+
+        const body = rows.map((item, idx) => {
+          const isMe = me && item.userId === me.id;
+          return `
+            <tr class="${isMe ? "rank-me" : ""}">
+              <td>#${idx + 1}</td>
+              <td>${escapeHtml(item.nickname || "Player")}</td>
+              <td>${formatDuration(item.durationSec)}</td>
+              <td>${item.hintsUsed}</td>
+              <td>${item.shufflesUsed}</td>
+              <td>${formatDate(item.finishedAt)}</td>
+            </tr>
+          `;
+        }).join("");
+
+        els.leaderboardBody.innerHTML = body;
+
+        if (!me) {
+          els.myRankInfo.textContent = "登录后可查看“我的名次”。";
+          return;
+        }
+
+        const myRank = rows.findIndex((x) => x.userId === me.id);
+        if (myRank === -1) {
+          els.myRankInfo.textContent = "你暂未上榜（榜单仅统计完整通关且用时 ≥ 20 秒的最佳成绩）。";
+        } else {
+          els.myRankInfo.textContent = `我的名次：#${myRank + 1}`;
+        }
+      }
+
+      function setGameStatus(text) {
+        els.gameStatus.textContent = text;
+      }
+
+      function notify(text, type = "info") {
+        els.toast.textContent = text;
+        els.toast.style.borderColor = type === "ok"
+          ? "#34d39999"
+          : type === "warn"
+            ? "#f59e0b99"
+            : "var(--line)";
+
+        els.toast.classList.add("show");
+        clearTimeout(notify._timer);
+        notify._timer = setTimeout(() => {
+          els.toast.classList.remove("show");
+        }, 2200);
+      }
+
+      // ---------- Analytics ----------
+      function trackEvent(eventName, payload = {}) {
+        const event = {
+          event: eventName,
+          timestamp: new Date().toISOString(),
+          ...payload,
+        };
+
+        state.analytics.push(event);
+        saveState();
+        console.log("[analytics]", event);
+      }
+
+      // ---------- Game Flow ----------
+      function requestStartRound(source) {
+        if (running) {
+          const restart = confirm("当前对局进行中，确认结束并开始新一轮 6 关挑战？");
+          if (!restart) return;
+          stopTimer();
+          running = false;
+          clearSelection();
+        }
+
+        const gate = checkStartEligibility();
+        if (!gate.ok) {
+          showPaywall(gate.reason);
+          return;
+        }
+
+        consumeQuota();
+        currentLevelIndex = 0;
+        activeLevel = LEVELS[0];
+
+        score = 0;
+        hintsUsed = 0;
+        shufflesUsed = 0;
+        forcedShuffles = 0;
+        selected = null;
+        selectedEl = null;
+        sessionStartAt = Date.now();
+
+        trackEvent("session_start", {
+          source,
+          user_id: getCurrentUser()?.id || "guest",
+          plan: getPlan(),
+          total_levels: LEVELS.length,
+        });
+
+        startCurrentLevel();
+        showView("game");
+        hydrateAll();
+      }
+
+      function startCurrentLevel() {
+        activeLevel = LEVELS[currentLevelIndex] || LEVELS[0];
+        timeLeft = activeLevel.timeLimit;
+        running = true;
+        selected = null;
+        selectedEl = null;
+
+        initBoard();
+        renderBoard();
+        updateGameHUD();
+        setGameStatus(`已开始：第${activeLevel.id}/${LEVELS.length}关 · ${activeLevel.label}（${activeLevel.rows}×${activeLevel.cols}）`);
+
+        playSfx("start");
+        startTimer();
+      }
+
+      function advanceToNextLevelOrFinish() {
+        // 每过一关都加关卡奖励分
+        score += activeLevel.clearBonus;
+        updateGameHUD();
+
+        if (currentLevelIndex < LEVELS.length - 1) {
+          const passedLevel = activeLevel;
+          const nextLevel = LEVELS[currentLevelIndex + 1];
+
+          running = false;
+          stopTimer();
+          clearSelection();
+
+          setGameStatus(`✅ 第${passedLevel.id}关通过（+${passedLevel.clearBonus}分），准备进入第${nextLevel.id}关…`);
+          playSfx("levelClear");
+
+          setTimeout(() => {
+            currentLevelIndex += 1;
+            startCurrentLevel();
+          }, 700);
+
+          return;
+        }
+
+        finishRound(true);
+      }
+
+      function finishRound(win) {
+        const finishedLevel = activeLevel;
+
+        running = false;
+        stopTimer();
+        clearSelection();
+        renderBoard();
+
+        const durationSec = Math.max(1, Math.floor((Date.now() - sessionStartAt) / 1000));
+
+        const user = getCurrentUser();
+        lastResult = {
+          userId: user?.id || null,
+          nickname: user?.nickname || "Guest",
+          plan: getPlan(),
+          win,
+          level: finishedLevel.id,
+          levelLabel: finishedLevel.label,
+          boardRows: finishedLevel.rows,
+          boardCols: finishedLevel.cols,
+          durationSec,
+          score,
+          hintsUsed,
+          shufflesUsed,
+          forcedShuffles,
+          startedAt: new Date(sessionStartAt).toISOString(),
+          finishedAt: new Date().toISOString(),
+          moodScore: null,
+        };
+
+        trackEvent("session_complete", {
+          user_id: user?.id || "guest",
+          plan: getPlan(),
+          passed: win,
+          level_id: finishedLevel.id,
+          level_label: finishedLevel.label,
+          board_rows: finishedLevel.rows,
+          board_cols: finishedLevel.cols,
+          total_time_sec: durationSec,
+          hints_used: hintsUsed,
+          shuffles_used: shufflesUsed,
+        });
+
+        if (user) {
+          state.sessions.push(lastResult);
+          saveState();
+        }
+
+        if (win && user && durationSec >= GAME_CONFIG.minLeaderboardSec) {
+          upsertLeaderboard(lastResult);
+          saveState();
+        }
+
+        currentLevelIndex = 0;
+        activeLevel = LEVELS[0];
+        timeLeft = activeLevel.timeLimit;
+        board = [];
+        renderBoard();
+
+        updateGameHUD();
+        setGameStatus(
+          win
+            ? `🎉 已完成全部${LEVELS.length}关！`
+            : `⏰ 第${finishedLevel.id}/${LEVELS.length}关挑战失败，深呼吸再来。`
+        );
+        hydrateAll();
+
+        if (win) {
+          playSfx("gameWin");
+        } else {
+          playSfx("gameLose");
+        }
+
+        openResultModal();
+      }
+
+      function openResultModal() {
+        if (!lastResult) return;
+
+        pendingMoodScore = null;
+        els.moodRow.querySelectorAll(".mood-btn").forEach((btn) => btn.classList.remove("active"));
+        els.submitMoodBtn.disabled = false;
+
+        const title = lastResult.win ? "✅ 通关成功" : "⏳ 本局结束";
+        els.resultTitle.textContent = title;
+        const levelDesc = `关卡 ${lastResult.level}/${LEVELS.length} · ${lastResult.levelLabel}（${lastResult.boardRows}×${lastResult.boardCols}）`;
+        els.resultSummary.textContent =
+          `${levelDesc}｜用时 ${formatDuration(lastResult.durationSec)}，提示 ${lastResult.hintsUsed} 次，` +
+          `洗牌 ${lastResult.shufflesUsed} 次，得分 ${lastResult.score}。`;
+
+        if (!getCurrentUser()) {
+          els.resultHint.textContent = "你当前是游客，评分会用于本次反馈但不保存历史。";
+        } else {
+          els.resultHint.textContent = "请选择评分后提交。";
+        }
+
+        els.resultModal.classList.remove("hidden");
+        els.resultModal.setAttribute("aria-hidden", "false");
+      }
+
+      function closeResultModal() {
+        els.resultModal.classList.add("hidden");
+        els.resultModal.setAttribute("aria-hidden", "true");
+      }
+
+      function submitMoodScore() {
+        if (!lastResult) return;
+        if (!pendingMoodScore) {
+          notify("请先选择 1-5 分", "warn");
+          return;
+        }
+
+        trackEvent("mood_score", {
+          user_id: getCurrentUser()?.id || "guest",
+          score: pendingMoodScore,
+          session_finished_at: lastResult.finishedAt,
+        });
+
+        const user = getCurrentUser();
+        if (user) {
+          state.moodRecords.push({
+            userId: user.id,
+            score: pendingMoodScore,
+            at: new Date().toISOString(),
+            sessionFinishedAt: lastResult.finishedAt,
+          });
+
+          const idx = state.sessions.findIndex((x) =>
+            x.userId === user.id && x.finishedAt === lastResult.finishedAt
+          );
+          if (idx !== -1) {
+            state.sessions[idx].moodScore = pendingMoodScore;
+          }
+
+          saveState();
+        }
+
+        lastResult.moodScore = pendingMoodScore;
+        els.submitMoodBtn.disabled = true;
+        els.resultHint.textContent = `评分已提交：${pendingMoodScore} 分，感谢反馈 🌿`;
+
+        updateAccountView();
+        notify(user ? "评分已保存" : "评分已记录（游客不保存历史）", "ok");
+      }
+
+      function startTimer() {
+        stopTimer();
+        timerId = setInterval(() => {
+          if (!running) return;
+          timeLeft -= 1;
+          updateGameHUD();
+          if (timeLeft <= 0) {
+            finishRound(false);
+          }
+        }, 1000);
+      }
+
+      function stopTimer() {
+        if (timerId) {
+          clearInterval(timerId);
+          timerId = null;
+        }
+      }
+
+      // ---------- Board ----------
+      function initBoard() {
+        const total = activeLevel.rows * activeLevel.cols;
+        if (total % 2 !== 0) throw new Error("棋盘格子数必须是偶数");
+
+        const pairCount = total / 2;
+        const values = [];
+        for (let i = 0; i < pairCount; i++) {
+          const id = (i % ICONS.length) + 1;
+          values.push(id, id);
+        }
+
+        shuffleArray(values);
+        board = Array.from({ length: activeLevel.rows + 2 }, () =>
+          Array(activeLevel.cols + 2).fill(0)
+        );
+
+        let idx = 0;
+        for (let r = 1; r <= activeLevel.rows; r++) {
+          for (let c = 1; c <= activeLevel.cols; c++) {
+            board[r][c] = values[idx++];
+          }
+        }
+
+        ensurePlayable();
+      }
+
+      function renderBoard() {
+        els.board.style.setProperty("--cols", String(activeLevel.cols));
+        els.board.innerHTML = "";
+
+        for (let r = 1; r <= activeLevel.rows; r++) {
+          for (let c = 1; c <= activeLevel.cols; c++) {
+            const v = board[r]?.[c] || 0;
+            const btn = document.createElement("button");
+            btn.className = "cell";
+            btn.dataset.r = String(r);
+            btn.dataset.c = String(c);
+
+            if (v === 0) {
+              btn.classList.add("empty");
+              btn.disabled = true;
+              btn.textContent = "";
+            } else {
+              btn.textContent = ICONS[v - 1];
+              btn.addEventListener("click", () => handleCellClick(r, c, btn));
+            }
+
+            els.board.appendChild(btn);
+          }
+        }
+      }
+
+      function handleCellClick(r, c, el) {
+        if (!running || board[r][c] === 0) return;
+
+        if (!selected) {
+          selected = { r, c };
+          selectedEl = el;
+          selectedEl.classList.add("selected");
+          playSfx("select");
+          return;
+        }
+
+        if (selected.r === r && selected.c === c) {
+          clearSelection();
+          return;
+        }
+
+        const a = selected;
+        const b = { r, c };
+        const sameValue = board[a.r][a.c] === board[b.r][b.c];
+
+        if (sameValue && canConnect(a, b)) {
+          playSfx("match");
+          el.classList.add("matched");
+          if (selectedEl) selectedEl.classList.add("matched");
+
+          setTimeout(() => {
+            board[a.r][a.c] = 0;
+            board[b.r][b.c] = 0;
+            score += activeLevel.pairScore;
+            clearSelection();
+            renderBoard();
+            updateGameHUD();
+            afterEliminate();
+          }, 110);
+        } else {
+          playSfx("wrong");
+          el.classList.add("shake");
+          if (selectedEl) selectedEl.classList.add("shake");
+          setTimeout(() => {
+            el.classList.remove("shake");
+            if (selectedEl) selectedEl.classList.remove("shake");
+            clearSelection();
+          }, 170);
+        }
+      }
+
+      function clearSelection() {
+        if (selectedEl) selectedEl.classList.remove("selected");
+        selected = null;
+        selectedEl = null;
+      }
+
+      function afterEliminate() {
+        if (isBoardCleared()) {
+          advanceToNextLevelOrFinish();
+          return;
+        }
+
+        if (!findHintPair()) {
+          shuffleBoardValues();
+          ensurePlayable();
+          forcedShuffles += 1;
+          renderBoard();
+          setGameStatus("当前无可连组合，已自动洗牌 🔄");
+          playSfx("shuffle");
+        }
+      }
+
+      function useHint() {
+        if (!running) return;
+        const pair = findHintPair();
+
+        if (!pair) {
+          setGameStatus("当前无可提示组合，请先洗牌。");
+          return;
+        }
+
+        hintsUsed += 1;
+        score = Math.max(0, score - activeLevel.hintPenalty);
+        updateGameHUD();
+        highlightPair(pair);
+        setGameStatus(`💡 已提示一组（-${activeLevel.hintPenalty} 分）`);
+        playSfx("hint");
+      }
+
+      function manualShuffle() {
+        if (!running) return;
+
+        shuffleBoardValues();
+        ensurePlayable();
+        shufflesUsed += 1;
+        score = Math.max(0, score - activeLevel.shufflePenalty);
+        clearSelection();
+        renderBoard();
+        updateGameHUD();
+        setGameStatus(`🔀 已手动洗牌（-${activeLevel.shufflePenalty} 分）`);
+        playSfx("shuffle");
+      }
+
+      function highlightPair([a, b]) {
+        const aEl = getCellEl(a.r, a.c);
+        const bEl = getCellEl(b.r, b.c);
+
+        [aEl, bEl].forEach((n) => {
+          if (!n) return;
+          n.classList.add("hint");
+          setTimeout(() => n.classList.remove("hint"), 900);
+        });
+      }
+
+      function getCellEl(r, c) {
+        return els.board.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+      }
+
+      function isBoardCleared() {
+        for (let r = 1; r <= activeLevel.rows; r++) {
+          for (let c = 1; c <= activeLevel.cols; c++) {
+            if (board[r][c] !== 0) return false;
+          }
+        }
+        return true;
+      }
+
+      function findHintPair() {
+        const cells = [];
+        for (let r = 1; r <= activeLevel.rows; r++) {
+          for (let c = 1; c <= activeLevel.cols; c++) {
+            if (board[r][c] > 0) {
+              cells.push({ r, c, v: board[r][c] });
+            }
+          }
+        }
+
+        for (let i = 0; i < cells.length; i++) {
+          for (let j = i + 1; j < cells.length; j++) {
+            if (cells[i].v !== cells[j].v) continue;
+            if (canConnect(cells[i], cells[j])) return [cells[i], cells[j]];
+          }
+        }
+        return null;
+      }
+
+      function shuffleBoardValues() {
+        const vals = [];
+        for (let r = 1; r <= activeLevel.rows; r++) {
+          for (let c = 1; c <= activeLevel.cols; c++) {
+            if (board[r][c] > 0) vals.push(board[r][c]);
+          }
+        }
+
+        shuffleArray(vals);
+
+        let idx = 0;
+        for (let r = 1; r <= activeLevel.rows; r++) {
+          for (let c = 1; c <= activeLevel.cols; c++) {
+            if (board[r][c] > 0) {
+              board[r][c] = vals[idx++];
+            }
+          }
+        }
+      }
+
+      function ensurePlayable() {
+        if (isBoardCleared()) return;
+
+        let tries = 0;
+        while (!findHintPair() && tries < 120) {
+          shuffleBoardValues();
+          tries += 1;
+        }
+      }
+
+      // 连连看判定（最多2次转弯）
+      function canConnect(p, q) {
+        if (samePoint(p, q)) return false;
+        if (board[p.r][p.c] === 0 || board[q.r][q.c] === 0) return false;
+        if (board[p.r][p.c] !== board[q.r][q.c]) return false;
+
+        if (canDirect(p, q)) return true;
+        if (canOneTurn(p, q)) return true;
+
+        for (let r = 0; r <= activeLevel.rows + 1; r++) {
+          const m = { r, c: p.c };
+          if (samePoint(m, p)) continue;
+          if ((board[m.r][m.c] === 0 || samePoint(m, q)) && canDirect(p, m) && canOneTurn(m, q)) {
+            return true;
+          }
+        }
+
+        for (let c = 0; c <= activeLevel.cols + 1; c++) {
+          const m = { r: p.r, c };
+          if (samePoint(m, p)) continue;
+          if ((board[m.r][m.c] === 0 || samePoint(m, q)) && canDirect(p, m) && canOneTurn(m, q)) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      function canOneTurn(p, q) {
+        const corners = [
+          { r: p.r, c: q.c },
+          { r: q.r, c: p.c },
+        ];
+
+        for (const m of corners) {
+          if (!inside(m.r, m.c)) continue;
+          const midEmpty = board[m.r][m.c] === 0 || samePoint(m, p) || samePoint(m, q);
+          if (midEmpty && canDirect(p, m) && canDirect(m, q)) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      function canDirect(p, q) {
+        if (p.r === q.r) return clearRow(p.r, p.c, q.c);
+        if (p.c === q.c) return clearCol(p.c, p.r, q.r);
+        return false;
+      }
+
+      function clearRow(r, c1, c2) {
+        const [s, e] = c1 < c2 ? [c1, c2] : [c2, c1];
+        for (let c = s + 1; c < e; c++) {
+          if (board[r][c] !== 0) return false;
+        }
+        return true;
+      }
+
+      function clearCol(c, r1, r2) {
+        const [s, e] = r1 < r2 ? [r1, r2] : [r2, r1];
+        for (let r = s + 1; r < e; r++) {
+          if (board[r][c] !== 0) return false;
+        }
+        return true;
+      }
+
+      function samePoint(a, b) {
+        return a.r === b.r && a.c === b.c;
+      }
+
+      function inside(r, c) {
+        return r >= 0 && r <= activeLevel.rows + 1 && c >= 0 && c <= activeLevel.cols + 1;
+      }
+
+      // ---------- Leaderboard ----------
+      function upsertLeaderboard(result) {
+        const candidate = {
+          userId: result.userId,
+          nickname: result.nickname,
+          durationSec: result.durationSec,
+          hintsUsed: result.hintsUsed,
+          shufflesUsed: result.shufflesUsed,
+          finishedAt: result.finishedAt,
+        };
+
+        const idx = state.leaderboard.findIndex((x) => x.userId === candidate.userId);
+        if (idx === -1) {
+          state.leaderboard.push(candidate);
+        } else {
+          const existing = state.leaderboard[idx];
+          if (compareRank(candidate, existing) < 0) {
+            state.leaderboard[idx] = candidate;
+          }
+        }
+
+        state.leaderboard.sort(compareRank);
+        state.leaderboard = state.leaderboard.slice(0, 50);
+      }
+
+      function compareRank(a, b) {
+        if (a.durationSec !== b.durationSec) return a.durationSec - b.durationSec;
+        if (a.hintsUsed !== b.hintsUsed) return a.hintsUsed - b.hintsUsed;
+        if (a.shufflesUsed !== b.shufflesUsed) return a.shufflesUsed - b.shufflesUsed;
+        return new Date(a.finishedAt).getTime() - new Date(b.finishedAt).getTime();
+      }
+
+      // ---------- Audio ----------
+      function ensureAudioCtx() {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        if (!audioCtx) audioCtx = new Ctx();
+        if (audioCtx.state === "suspended") {
+          audioCtx.resume().catch(() => {});
+        }
+        return audioCtx;
+      }
+
+      function toggleSfx() {
+        state.settings.sfxOn = !state.settings.sfxOn;
+        saveState();
+        updateAudioUI();
+        if (state.settings.sfxOn) playSfx("select");
+      }
+
+      function handleAmbientChange() {
+        const next = els.ambientSelect.value;
+        if (next === "white" && !isProUser()) {
+          els.ambientSelect.value = state.settings.ambient;
+          showPaywall("白噪音为 Pro 专属环境音，请升级后使用。");
+          return;
+        }
+
+        state.settings.ambient = next;
+        saveState();
+        applyAmbientSound();
+      }
+
+      function applyAmbientSound() {
+        stopAmbientSound();
+
+        const mode = state.settings.ambient;
+        if (mode === "off") return;
+
+        if (mode === "white" && !isProUser()) {
+          state.settings.ambient = "off";
+          saveState();
+          updateAudioUI();
+          return;
+        }
+
+        const ctx = ensureAudioCtx();
+        if (!ctx) return;
+
+        const noiseBuffer = createNoiseBuffer(ctx, 2.0);
+        const source = ctx.createBufferSource();
+        source.buffer = noiseBuffer;
+        source.loop = true;
+
+        const gain = ctx.createGain();
+        let filterA = ctx.createBiquadFilter();
+        let filterB = ctx.createBiquadFilter();
+
+        if (mode === "rain") {
+          filterA.type = "highpass";
+          filterA.frequency.value = 400;
+          filterB.type = "lowpass";
+          filterB.frequency.value = 4200;
+          gain.gain.value = 0.03;
+
+          source.connect(filterA).connect(filterB).connect(gain).connect(ctx.destination);
+
+          rainDropInterval = setInterval(() => {
+            playAmbientDrop();
+          }, 260);
+        } else {
+          // white noise
+          filterA.type = "lowpass";
+          filterA.frequency.value = 1800;
+          filterB.type = "highpass";
+          filterB.frequency.value = 120;
+          gain.gain.value = 0.04;
+
+          source.connect(filterA).connect(filterB).connect(gain).connect(ctx.destination);
+        }
+
+        source.start();
+        ambientSource = source;
+        ambientGain = gain;
+        ambientFilterA = filterA;
+        ambientFilterB = filterB;
+      }
+
+      function stopAmbientSound() {
+        if (rainDropInterval) {
+          clearInterval(rainDropInterval);
+          rainDropInterval = null;
+        }
+
+        if (ambientSource) {
+          try { ambientSource.stop(); } catch (_) {}
+          try { ambientSource.disconnect(); } catch (_) {}
+        }
+        if (ambientGain) {
+          try { ambientGain.disconnect(); } catch (_) {}
+        }
+        if (ambientFilterA) {
+          try { ambientFilterA.disconnect(); } catch (_) {}
+        }
+        if (ambientFilterB) {
+          try { ambientFilterB.disconnect(); } catch (_) {}
+        }
+
+        ambientSource = null;
+        ambientGain = null;
+        ambientFilterA = null;
+        ambientFilterB = null;
+      }
+
+      function createNoiseBuffer(ctx, seconds) {
+        const length = Math.floor(ctx.sampleRate * seconds);
+        const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        return buffer;
+      }
+
+      function playAmbientDrop() {
+        const ctx = ensureAudioCtx();
+        if (!ctx) return;
+
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(700 + Math.random() * 900, now);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.003, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.09);
+      }
+
+      function playSfx(type) {
+        if (!state.settings.sfxOn) return;
+
+        switch (type) {
+          case "start":
+            tone({ freq: 440, duration: 0.08, type: "triangle", volume: 0.024 });
+            setTimeout(() => tone({ freq: 660, duration: 0.09, type: "triangle", volume: 0.024 }), 90);
+            break;
+          case "select":
+            tone({ freq: 760, duration: 0.05, type: "triangle", volume: 0.02 });
+            break;
+          case "match":
+            tone({ freq: 620, duration: 0.08, type: "sine", volume: 0.03 });
+            setTimeout(() => tone({ freq: 840, duration: 0.08, type: "sine", volume: 0.03 }), 70);
+            break;
+          case "wrong":
+            tone({ freq: 280, endFreq: 160, duration: 0.12, type: "sawtooth", volume: 0.03 });
+            break;
+          case "hint":
+            tone({ freq: 520, endFreq: 760, duration: 0.13, type: "triangle", volume: 0.024 });
+            break;
+          case "shuffle":
+            tone({ freq: 760, endFreq: 260, duration: 0.16, type: "triangle", volume: 0.03 });
+            break;
+          case "levelClear":
+            tone({ freq: 523, duration: 0.09, type: "triangle", volume: 0.03 });
+            setTimeout(() => tone({ freq: 659, duration: 0.09, type: "triangle", volume: 0.03 }), 95);
+            setTimeout(() => tone({ freq: 784, duration: 0.11, type: "triangle", volume: 0.03 }), 190);
+            break;
+          case "gameWin":
+            tone({ freq: 523, duration: 0.1, type: "sine", volume: 0.03 });
+            setTimeout(() => tone({ freq: 659, duration: 0.1, type: "sine", volume: 0.03 }), 110);
+            setTimeout(() => tone({ freq: 784, duration: 0.14, type: "sine", volume: 0.03 }), 220);
+            break;
+          case "gameLose":
+            tone({ freq: 320, endFreq: 180, duration: 0.24, type: "sawtooth", volume: 0.028 });
+            break;
+        }
+      }
+
+      function tone({ freq = 440, duration = 0.1, type = "sine", volume = 0.03, endFreq = null }) {
+        const ctx = ensureAudioCtx();
+        if (!ctx) return;
+
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (endFreq && endFreq > 0) {
+          osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
+        }
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(volume, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration + 0.03);
+      }
+
+      // ---------- Utils ----------
+      function formatDuration(sec) {
+        const s = Math.max(0, Number(sec) || 0);
+        const m = String(Math.floor(s / 60)).padStart(2, "0");
+        const r = String(s % 60).padStart(2, "0");
+        return `${m}:${r}`;
+      }
+
+      function formatDate(iso) {
+        if (!iso) return "-";
+        const d = new Date(iso);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mi = String(d.getMinutes()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+      }
+
+      function shuffleArray(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      }
+
+      function simpleHash(str) {
+        let h = 2166136261;
+        for (let i = 0; i < str.length; i++) {
+          h ^= str.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return (h >>> 0).toString(36);
+      }
+
+      function normalizeEmail(v) {
+        return String(v || "").trim().toLowerCase();
+      }
+
+      function isValidEmail(v) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+    })();
+  </script>
+</body>
+</html>
